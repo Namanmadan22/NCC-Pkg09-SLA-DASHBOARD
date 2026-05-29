@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NCC Aurangabad — SAT SLA Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+:root {
+  --blue:#4A9EFF; --blue-dk:#1B6FE8; --blue-dim:#1a2f4e;
+  --teal:#34D399; --teal-dk:#0E9E72; --teal-dim:#0f3328;
+  --amber:#FBBF24; --amber-dk:#D97706; --amber-dim:#3a2800;
+  --purple:#A78BFA; --purple-dim:#2d1f5e;
+  --rose:#FB7185; --rose-dim:#3b1120;
+  --border:#2a2f3a; --border-lt:#353b48;
+  --text:#F1F5F9; --text-2:#94A3B8; --text-3:#64748B;
+  --surface:#1E2330; --surface-2:#252B3A; --page:#151922;
+  --radius-lg:14px; --radius:10px;
+}
+body { font-family:'DM Sans',sans-serif; background:var(--page); color:var(--text); min-height:100vh; padding:2rem 1.5rem 3rem; }
+.wrap { max-width:980px; margin:0 auto; }
+
+/* HEADER */
+.header { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:14px; margin-bottom:2rem; padding-bottom:1.5rem; border-bottom:1px solid var(--border); }
+.org-chip { display:inline-flex; align-items:center; gap:7px; font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--blue); background:var(--blue-dim); border-radius:6px; padding:4px 11px; margin-bottom:10px; border:1px solid #1B6FE840; }
+.header h1 { font-size:32px; font-weight:600; color:var(--text); line-height:1.2; margin-bottom:8px; }
+.header-meta { display:flex; align-items:center; gap:18px; flex-wrap:wrap; font-size:13px; color:var(--text-2); }
+.header-meta span { display:flex; align-items:center; gap:5px; }
+.live-dot { width:7px; height:7px; border-radius:50%; background:var(--teal); display:inline-block; animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* UPLOAD PANEL */
+.upload-panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:1.5rem; margin-bottom:2rem; }
+.upload-panel h2 { font-size:14px; font-weight:600; color:var(--text); margin-bottom:4px; }
+.upload-panel p { font-size:12px; color:var(--text-3); margin-bottom:1.25rem; }
+.upload-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; margin-bottom:1.25rem; }
+.upload-box { background:var(--surface-2); border:1.5px dashed var(--border-lt); border-radius:var(--radius); padding:1rem; text-align:center; cursor:pointer; transition:all 0.15s; position:relative; }
+.upload-box:hover { border-color:var(--blue); }
+.upload-box.done { border-style:solid; border-color:var(--teal); }
+.upload-box input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+.upload-box .ub-icon { font-size:20px; margin-bottom:6px; }
+.upload-box .ub-label { font-size:12px; font-weight:600; color:var(--text); display:block; margin-bottom:2px; }
+.upload-box .ub-sub { font-size:11px; color:var(--text-3); }
+.upload-box.done .ub-sub { color:var(--teal); }
+.process-btn { width:100%; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600; padding:12px; border-radius:var(--radius); border:none; background:var(--blue-dk); color:#fff; cursor:pointer; transition:all 0.15s; }
+.process-btn:hover { background:var(--blue); }
+.process-btn:disabled { background:var(--surface-2); color:var(--text-3); cursor:not-allowed; }
+.status-bar { margin-top:10px; font-size:12px; color:var(--text-3); text-align:center; min-height:18px; }
+.status-bar.err { color:var(--rose); }
+.status-bar.ok { color:var(--teal); }
+
+/* SECTION */
+.section-label { font-size:10.5px; font-weight:600; letter-spacing:0.09em; text-transform:uppercase; color:var(--text-3); margin-bottom:10px; }
+
+/* METRIC CARDS */
+.metric-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin-bottom:2rem; }
+.mc { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:1.1rem 1.25rem 1rem; position:relative; overflow:hidden; }
+.mc::after { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:var(--radius-lg) var(--radius-lg) 0 0; }
+.mc.gray::after { background:#64748B; } .mc.blue::after { background:var(--blue); }
+.mc.teal::after { background:var(--teal); } .mc.amber::after { background:var(--amber); } .mc.rose::after { background:var(--rose); }
+.mc-label { font-size:10.5px; font-weight:500; letter-spacing:0.05em; text-transform:uppercase; color:var(--text-3); margin-bottom:8px; }
+.mc-val { font-size:24px; font-weight:600; line-height:1; margin-bottom:5px; }
+.mc-sub { font-family:'DM Mono',monospace; font-size:11px; color:var(--text-3); }
+
+/* DATE FILTER */
+.date-filter { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.date-btn { font-family:'DM Sans',sans-serif; font-size:12px; font-weight:500; padding:6px 14px; border-radius:8px; border:1px solid var(--border-lt); background:var(--surface); color:var(--text-2); cursor:pointer; transition:all 0.15s; }
+.date-btn.active { background:var(--blue-dk); color:#fff; border-color:var(--blue-dk); }
+.date-btn:hover:not(.active) { background:var(--surface-2); color:var(--text); }
+
+/* STREAM CHARTS */
+.stream-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; margin-bottom:2rem; }
+.sc { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:1.25rem 1.25rem 1rem; }
+.sc-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:0.6rem; }
+.sc-title { font-size:14px; font-weight:600; color:var(--text); }
+.sc-tag { font-size:11px; font-weight:500; padding:3px 9px; border-radius:6px; border:1px solid; }
+.legend-row { display:flex; gap:14px; margin-bottom:1rem; flex-wrap:wrap; }
+.leg { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-2); }
+.leg-sq { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+
+/* CARD */
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:1.25rem; margin-bottom:1.25rem; }
+.card-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.1rem; flex-wrap:wrap; gap:8px; }
+.card-title { font-size:14px; font-weight:600; color:var(--text); }
+
+/* TABLE */
+.tbl { width:100%; border-collapse:collapse; font-size:13px; }
+.tbl th { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.07em; color:var(--text-3); padding:0 10px 10px; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; }
+.tbl td { padding:9px 10px; color:var(--text-2); border-bottom:1px solid var(--border); vertical-align:middle; }
+.tbl tr:last-child td { border-bottom:none; }
+.tbl tr.sec-row td { background:var(--surface-2); font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-3); padding:7px 10px; border-bottom:1px solid var(--border); }
+.tbl tr.div-row td { padding:0; height:5px; background:var(--page); border:none; }
+.stream-chip { display:inline-flex; align-items:center; gap:7px; font-weight:500; color:var(--text); }
+.sdot { width:8px; height:8px; border-radius:2px; flex-shrink:0; }
+.pill { font-family:'DM Mono',monospace; font-size:12px; font-weight:500; padding:3px 10px; border-radius:6px; display:inline-block; white-space:nowrap; }
+.mono { font-family:'DM Mono',monospace; font-size:12px; }
+.calc-box { background:var(--surface-2); border:1px solid var(--border-lt); border-radius:var(--radius); padding:1rem 1.25rem; margin-top:1rem; }
+.calc-box p { font-size:12.5px; color:var(--text-2); line-height:1.9; }
+.hi { color:var(--text); font-weight:500; }
+.purple { color:var(--purple); font-weight:500; }
+
+.hidden { display:none !important; }
+.footer { margin-top:2rem; padding-top:1.25rem; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:11.5px; color:var(--text-3); }
+@media(max-width:600px){ body{padding:1rem 1rem 2rem;} .header h1{font-size:24px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div>
+      <div class="org-chip">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 21h18M3 7l9-4 9 4M4 7v14M20 7v14M8 10v4M12 10v4M16 10v4"/></svg>
+        NCC Aurangabad
+      </div>
+      <h1>SAT SLA Dashboard</h1>
+      <div class="header-meta">
+        <span><span class="live-dot"></span>Live</span>
+        <span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span id="date-range">—</span>
+        </span>
+        <span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M1 12h3M20 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
+          7,05,865 SAT Meters
+        </span>
+      </div>
+    </div>
+    <div class="date-filter" id="date-filter"></div>
+  </div>
+
+  <!-- UPLOAD PANEL -->
+  <div class="upload-panel" id="upload-panel">
+    <h2>Upload today's files</h2>
+    <p>Drop all 4 files below, then click Process. Dashboard will calculate automatically.</p>
+    <div class="upload-grid">
+      <div class="upload-box" id="box-ls8">
+        <input type="file" accept=".xlsx,.xls,.csv" onchange="fileSelected(this,'ls8')">
+        <div class="ub-icon">📊</div>
+        <span class="ub-label">8hrs LS</span>
+        <span class="ub-sub" id="sub-ls8">Click or drag file here</span>
+      </div>
+      <div class="upload-box" id="box-ls12">
+        <input type="file" accept=".xlsx,.xls,.csv" onchange="fileSelected(this,'ls12')">
+        <div class="ub-icon">📊</div>
+        <span class="ub-label">12hrs LS</span>
+        <span class="ub-sub" id="sub-ls12">Click or drag file here</span>
+      </div>
+      <div class="upload-box" id="box-dp24">
+        <input type="file" accept=".xlsx,.xls,.csv" onchange="fileSelected(this,'dp24')">
+        <div class="ub-icon">📊</div>
+        <span class="ub-label">24hrs DP</span>
+        <span class="ub-sub" id="sub-dp24">Click or drag file here</span>
+      </div>
+      <div class="upload-box" id="box-routing">
+        <input type="file" accept=".xlsx,.xls,.csv" onchange="fileSelected(this,'routing')">
+        <div class="ub-icon">🗺️</div>
+        <span class="ub-label">Routing Report</span>
+        <span class="ub-sub" id="sub-routing">Click or drag file here</span>
+      </div>
+    </div>
+    <button class="process-btn" id="process-btn" onclick="processAll()" disabled>Upload all 4 files to process</button>
+    <div class="status-bar" id="status-bar"></div>
+  </div>
+
+  <!-- DASHBOARD (hidden until processed) -->
+  <div id="dashboard" class="hidden">
+    <p class="section-label" id="latest-label">Latest</p>
+    <div class="metric-row">
+      <div class="mc gray">
+        <p class="mc-label">Total SAT meters</p>
+        <p class="mc-val" style="color:var(--text);">7,05,865</p>
+        <p class="mc-sub">master list · fixed</p>
+      </div>
+      <div class="mc blue">
+        <p class="mc-label">8hrs LS (with excl.)</p>
+        <p class="mc-val" style="color:var(--blue);" id="m-ls8">—</p>
+        <p class="mc-sub" id="m-ls8-sub">—</p>
+      </div>
+      <div class="mc teal">
+        <p class="mc-label">12hrs LS (with excl.)</p>
+        <p class="mc-val" style="color:var(--teal);" id="m-ls12">—</p>
+        <p class="mc-sub" id="m-ls12-sub">—</p>
+      </div>
+      <div class="mc amber">
+        <p class="mc-label">24hrs DP (with excl.)</p>
+        <p class="mc-val" style="color:var(--amber);" id="m-dp24">—</p>
+        <p class="mc-sub" id="m-dp24-sub">—</p>
+      </div>
+      <div class="mc rose">
+        <p class="mc-label">Non-comm (excl.)</p>
+        <p class="mc-val" style="color:var(--rose);" id="m-noncomm">—</p>
+        <p class="mc-sub" id="m-noncomm-sub">—</p>
+      </div>
+    </div>
+
+    <p class="section-label">Day-wise % achieved by stream</p>
+    <div class="stream-grid">
+      <div class="sc">
+        <div class="sc-head">
+          <span class="sc-title">8hrs LS</span>
+          <span class="sc-tag" style="color:var(--blue);background:var(--blue-dim);border-color:#1B6FE840;">% achieved</span>
+        </div>
+        <div class="legend-row">
+          <span class="leg"><span class="leg-sq" style="background:#4A9EFF;"></span>Without exclusion</span>
+          <span class="leg"><span class="leg-sq" style="background:#A78BFA;"></span>With exclusion</span>
+        </div>
+        <div style="position:relative;height:220px;"><canvas id="ls8Chart" role="img" aria-label="8hrs LS"></canvas></div>
+      </div>
+      <div class="sc">
+        <div class="sc-head">
+          <span class="sc-title">12hrs LS</span>
+          <span class="sc-tag" style="color:var(--teal);background:var(--teal-dim);border-color:#0E9E7240;">% achieved</span>
+        </div>
+        <div class="legend-row">
+          <span class="leg"><span class="leg-sq" style="background:#34D399;"></span>Without exclusion</span>
+          <span class="leg"><span class="leg-sq" style="background:#A78BFA;"></span>With exclusion</span>
+        </div>
+        <div style="position:relative;height:220px;"><canvas id="ls12Chart" role="img" aria-label="12hrs LS"></canvas></div>
+      </div>
+      <div class="sc">
+        <div class="sc-head">
+          <span class="sc-title">24hrs DP</span>
+          <span class="sc-tag" style="color:var(--amber);background:var(--amber-dim);border-color:#D9770640;">% achieved</span>
+        </div>
+        <div class="legend-row">
+          <span class="leg"><span class="leg-sq" style="background:#FBBF24;"></span>Without exclusion</span>
+          <span class="leg"><span class="leg-sq" style="background:#A78BFA;"></span>With exclusion</span>
+        </div>
+        <div style="position:relative;height:220px;"><canvas id="dp24Chart" role="img" aria-label="24hrs DP"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Day-wise breakdown</span>
+        <span style="font-size:12px;color:var(--text-3);font-family:'DM Mono',monospace;">Non-comm count + calculation</span>
+      </div>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Date</th><th>Stream</th><th>Non-comm meters</th><th>Excl. %</th><th>Without exclusion</th><th>With exclusion</th>
+          </tr>
+        </thead>
+        <tbody id="calc-body"></tbody>
+      </table>
+      <div class="calc-box" id="calc-box"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Meter list: 7,05,865 SAT meters · fixed master list · NCC Aurangabad</span>
+    <span>SAT Division · SLA Report</span>
+  </div>
+</div>
+
+<script src="meters.js"></script>
+<script>
+const TOTAL = 705865;
+const MAX_LS = 48, MAX_DP = 1;
+const C  = { ls8:'#4A9EFF', ls12:'#34D399', dp24:'#FBBF24' };
+const CE = '#A78BFA';
+const LABELS = { ls8:'8hrs LS', ls12:'12hrs LS', dp24:'24hrs DP' };
+const PILL_S = { ls8:'background:#1a2f4e;color:#4A9EFF', ls12:'background:#0f3328;color:#34D399', dp24:'background:#3a2800;color:#FBBF24' };
+
+let files = { ls8:null, ls12:null, dp24:null, routing:null };
+let DATA = {};
+let charts = {};
+let currentFilter = 'both';
+
+function fmt(n) { return n != null ? Number(n).toLocaleString('en-IN') : '—'; }
+
+function fileSelected(input, key) {
+  files[key] = input.files[0];
+  const name = files[key].name;
+  document.getElementById('sub-' + key).textContent = name.length > 22 ? name.slice(0,20)+'…' : name;
+  document.getElementById('box-' + key).classList.add('done');
+  const allReady = Object.values(files).every(f => f != null);
+  const btn = document.getElementById('process-btn');
+  btn.disabled = !allReady;
+  btn.textContent = allReady ? 'Process & Generate Dashboard' : 'Upload all 4 files to process';
+}
+
+function readXLSX(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array', cellDates:true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:null, raw:false });
+        resolve(rows);
+      } catch(err) { reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function setStatus(msg, cls='') {
+  const el = document.getElementById('status-bar');
+  el.textContent = msg;
+  el.className = 'status-bar ' + cls;
+}
+
+function parseDate(val) {
+  if (!val) return null;
+  if (val instanceof Date) return val;
+  const s = String(val).trim();
+  // Try YYYY-MM-DD or DD-MM-YYYY
+  let m;
+  if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})/))) return new Date(+m[1], +m[2]-1, +m[3]);
+  if ((m = s.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/))) return new Date(+m[3], +m[2]-1, +m[1]);
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+
+function dateStr(d) {
+  if (!d) return null;
+  const day = String(d.getDate()).padStart(2,'0');
+  const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
+  return `${day} ${mon}`;
+}
+
+function dateKey(d) {
+  if (!d) return null;
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+async function processAll() {
+  const btn = document.getElementById('process-btn');
+  btn.disabled = true;
+  DATA = {};
+
+  try {
+    setStatus('Reading 8hrs LS file…');
+    const ls8Rows = await readXLSX(files.ls8);
+    setStatus('Reading 12hrs LS file…');
+    const ls12Rows = await readXLSX(files.ls12);
+    setStatus('Reading 24hrs DP file…');
+    const dp24Rows = await readXLSX(files.dp24);
+    setStatus('Reading routing report…');
+    const routRows = await readXLSX(files.routing);
+
+    // Check SAT_METERS loaded
+    if (typeof window.SAT_METERS === 'undefined') {
+      setStatus('Error: meters.js not loaded. Make sure meters.js is in the same folder.', 'err');
+      btn.disabled = false;
+      return;
+    }
+
+    setStatus('Processing SLA data…');
+    // Parse SLA files — col 0: meter, col 1: date (header), rows: meter + packets
+    function parseSLA(rows, maxPkt) {
+      const header = rows[0] || [];
+      // Find date columns (skip meter column)
+      const dateCols = [];
+      for (let c = 1; c < header.length; c++) {
+        const d = parseDate(header[c]);
+        if (d) dateCols.push({ col:c, date:d, key:dateKey(d), label:dateStr(d) });
+      }
+
+      // Aggregate per date
+      const byDate = {};
+      dateCols.forEach(dc => { byDate[dc.key] = { label:dc.label, date:dc.date, sumPkts:0 }; });
+
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        const meter = row[0] ? String(row[0]).trim() : null;
+        if (!meter || !window.SAT_METERS.has(meter)) continue;
+        dateCols.forEach(dc => {
+          const v = row[dc.col];
+          const pkts = (v === null || v === undefined || String(v).toUpperCase().includes('N/A') || String(v).toUpperCase().includes('#')) ? 0 : parseFloat(v) || 0;
+          byDate[dc.key].sumPkts += pkts;
+        });
+      }
+
+      // Calculate %
+      const result = {};
+      Object.entries(byDate).forEach(([key, entry]) => {
+        const expected = TOTAL * maxPkt;
+        result[key] = { label:entry.label, date:entry.date, pct: parseFloat(((entry.sumPkts / expected) * 100).toFixed(2)) };
+      });
+      return result;
+    }
+
+    const ls8Data  = parseSLA(ls8Rows,  MAX_LS);
+    const ls12Data = parseSLA(ls12Rows, MAX_LS);
+    const dp24Data = parseSLA(dp24Rows, MAX_DP);
+
+    // Parse routing — col 0: meter, col 2: last comm date
+    setStatus('Calculating exclusions…');
+    const routing = {};
+    for (let r = 1; r < routRows.length; r++) {
+      const row = routRows[r];
+      const meter = row[0] ? String(row[0]).trim() : null;
+      const commRaw = row[2];
+      if (!meter || !commRaw) continue;
+      const d = parseDate(commRaw);
+      if (!d) continue;
+      const dk = dateKey(d);
+      if (!routing[meter] || dk > routing[meter]) routing[meter] = dk;
+    }
+
+    // Routing date = the date of the routing file (most common date)
+    const dateCounts = {};
+    Object.values(routing).forEach(d => { dateCounts[d] = (dateCounts[d]||0)+1; });
+    const routingDateKey = Object.entries(dateCounts).sort((a,b)=>b[1]-a[1])[0]?.[0];
+    const routingDate = routingDateKey ? new Date(routingDateKey) : null;
+
+    // Merge all dates from SLA files
+    const allDateKeys = [...new Set([...Object.keys(ls8Data), ...Object.keys(ls12Data), ...Object.keys(dp24Data)])].sort();
+
+    allDateKeys.forEach(dk => {
+      const ls8e  = ls8Data[dk]  || { pct:0 };
+      const ls12e = ls12Data[dk] || { pct:0 };
+      const dp24e = dp24Data[dk] || { pct:0 };
+      const label = (ls8Data[dk] || ls12Data[dk] || dp24Data[dk])?.label || dk;
+      const dataDate = new Date(dk);
+      const dateDk = dateKey(dataDate);
+
+      // Non-comm: SAT meters where last comm NOT on dataDate OR routingDate
+      const validKeys = new Set([dateDk, routingDateKey].filter(Boolean));
+      let ncCount = 0;
+      window.SAT_METERS.forEach(meter => {
+        const lastComm = routing[meter];
+        if (!lastComm || !validKeys.has(lastComm)) ncCount++;
+      });
+      const exclPct = parseFloat((ncCount / TOTAL * 100).toFixed(2));
+
+      DATA[dk] = {
+        label,
+        ls8:  { pct:ls8e.pct,  pctE:parseFloat((ls8e.pct  + exclPct).toFixed(2)) },
+        ls12: { pct:ls12e.pct, pctE:parseFloat((ls12e.pct + exclPct).toFixed(2)) },
+        dp24: { pct:dp24e.pct, pctE:parseFloat((dp24e.pct + exclPct).toFixed(2)) },
+        nonComm: ncCount,
+        exclPct,
+        routingDateLabel: routingDate ? dateStr(routingDate) : '—',
+        dataDateLabel: label,
+      };
+    });
+
+    setStatus('Rendering dashboard…');
+    renderDashboard();
+    setStatus('Done! Dashboard ready.', 'ok');
+    document.getElementById('dashboard').classList.remove('hidden');
+    document.getElementById('upload-panel').style.marginBottom = '1rem';
+
+  } catch(err) {
+    setStatus('Error: ' + err.message, 'err');
+    console.error(err);
+    btn.disabled = false;
+  }
+}
+
+// ── RENDER ──────────────────────────────────────────
+const datalabelPlugin = {
+  id:'datalabels',
+  afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    chart.data.datasets.forEach((ds,di) => {
+      chart.getDatasetMeta(di).data.forEach((bar,i) => {
+        const val = ds.data[i];
+        if (val == null) return;
+        ctx.save();
+        ctx.fillStyle = ds.borderColor;
+        ctx.font = '600 11px "DM Sans",sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(val.toFixed(2)+'%', bar.x, bar.y - 5);
+        ctx.restore();
+      });
+    });
+  }
+};
+Chart.register(datalabelPlugin);
+
+function visibleKeys() {
+  const keys = Object.keys(DATA).sort();
+  if (currentFilter === 'both') return keys;
+  return keys.filter(k => DATA[k].label.startsWith(currentFilter));
+}
+
+function buildFilters() {
+  const keys = Object.keys(DATA).sort();
+  const wrap = document.getElementById('date-filter');
+  const btns = [['both','All days'], ...keys.map(k => [DATA[k].label.split(' ')[0], DATA[k].label])];
+  // Deduplicate
+  const seen = new Set();
+  wrap.innerHTML = btns.filter(([k]) => { if(seen.has(k)) return false; seen.add(k); return true; })
+    .map(([k,l],i) => `<button class="date-btn${i===0?' active':''}" onclick="showDate(this,'${k}')">${l}</button>`)
+    .join('');
+}
+
+function makeChart(id, key) {
+  if (charts[id]) charts[id].destroy();
+  const keys   = visibleKeys();
+  const labels = keys.map(k => DATA[k].label);
+  const color  = C[key];
+  const normal  = keys.map(k => DATA[k][key].pct);
+  const withE   = keys.map(k => DATA[k][key].pctE);
+  const allVals = [...normal, ...withE].filter(v => v != null);
+  const yMin = Math.max(0, Math.floor(Math.min(...allVals)) - 3);
+  const yMax = Math.min(105, Math.ceil(Math.max(...allVals)) + 2);
+
+  charts[id] = new Chart(document.getElementById(id), {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        { label:'Without exclusion', data:normal, backgroundColor:color+'33', borderColor:color, borderWidth:2, borderRadius:5, borderSkipped:false },
+        { label:'With exclusion',    data:withE,  backgroundColor:CE+'33',    borderColor:CE,    borderWidth:2, borderRadius:5, borderSkipped:false },
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>c.parsed.y!=null?c.dataset.label+': '+c.parsed.y.toFixed(2)+'%':''}} },
+      scales:{
+        y:{ min:yMin, max:yMax, ticks:{callback:v=>v+'%',font:{size:11,family:'DM Mono'},color:'#64748B'}, grid:{color:'rgba(255,255,255,0.05)'}, border:{display:false} },
+        x:{ ticks:{font:{size:12},color:'#94A3B8',autoSkip:false}, grid:{display:false}, border:{display:false} }
+      },
+      layout:{ padding:{top:26,left:4,right:4,bottom:4} },
+    }
+  });
+}
+
+function updateMetricCards() {
+  const keys   = visibleKeys();
+  const latest = DATA[keys[keys.length-1]];
+  document.getElementById('latest-label').textContent = `Latest — ${latest.label} 2026`;
+  document.getElementById('m-ls8').textContent   = latest.ls8.pctE.toFixed(2)+'%';
+  document.getElementById('m-ls8-sub').textContent  = latest.label+' 2026';
+  document.getElementById('m-ls12').textContent  = latest.ls12.pctE.toFixed(2)+'%';
+  document.getElementById('m-ls12-sub').textContent = latest.label+' 2026';
+  document.getElementById('m-dp24').textContent  = latest.dp24.pctE.toFixed(2)+'%';
+  document.getElementById('m-dp24-sub').textContent = latest.label+' 2026';
+  document.getElementById('m-noncomm').textContent     = fmt(latest.nonComm);
+  document.getElementById('m-noncomm-sub').textContent = `${latest.exclPct.toFixed(2)}% of total · ${latest.label}`;
+  const first = DATA[keys[0]].label, last = DATA[keys[keys.length-1]].label;
+  document.getElementById('date-range').textContent = first===last ? `${first} 2026` : `${first}–${last} 2026`;
+}
+
+function updateTable() {
+  const keys = visibleKeys();
+  let html = '';
+  keys.forEach(k => {
+    const d = DATA[k];
+    html += `<tr class="sec-row"><td colspan="6">
+      ${d.label} 2026 &nbsp;·&nbsp; Non-comm SAT meters: <span style="color:var(--text);font-weight:600;">${fmt(d.nonComm)}</span>
+      &nbsp;·&nbsp; Excl. %: <span style="color:#A78BFA;font-weight:600;">${d.exclPct.toFixed(2)}%</span>
+      &nbsp;·&nbsp; Total SAT: ${fmt(TOTAL)}
+    </td></tr>`;
+    ['ls8','ls12','dp24'].forEach(sk => {
+      const s = d[sk];
+      html += `<tr>
+        <td class="mono">${d.label} 2026</td>
+        <td><span class="stream-chip"><span class="sdot" style="background:${C[sk]};"></span>${LABELS[sk]}</span></td>
+        <td class="mono" style="color:#FB7185;">${fmt(d.nonComm)}</td>
+        <td class="mono" style="color:#A78BFA;">${d.exclPct.toFixed(2)}%</td>
+        <td><span class="pill" style="${PILL_S[sk]};">${s.pct.toFixed(2)}%</span></td>
+        <td><span class="pill" style="background:#2d1f5e;color:#A78BFA;">${s.pctE.toFixed(2)}%</span></td>
+      </tr>`;
+    });
+    html += `<tr class="div-row"><td colspan="6"></td></tr>`;
+  });
+  document.getElementById('calc-body').innerHTML = html;
+
+  // Calc box — latest
+  const ld = DATA[keys[keys.length-1]];
+  document.getElementById('calc-box').innerHTML = `
+    <p style="font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-3);margin-bottom:10px;">Calculation — ${ld.label} 2026</p>
+    <p>
+      <span class="hi">Without exclusion %</span> = packets received ÷ (7,05,865 × max pkts) × 100<br>
+      &nbsp;&nbsp;&nbsp;8hrs LS = <span style="color:var(--blue);">${ld.ls8.pct.toFixed(2)}%</span> &nbsp;
+      12hrs LS = <span style="color:var(--teal);">${ld.ls12.pct.toFixed(2)}%</span> &nbsp;
+      24hrs DP = <span style="color:var(--amber);">${ld.dp24.pct.toFixed(2)}%</span>
+    </p>
+    <p style="margin-top:8px;">
+      <span class="hi">Non-comm meters</span> = SAT meters not comm on ${ld.dataDateLabel} or ${ld.routingDateLabel} = <span style="color:#FB7185;">${fmt(ld.nonComm)}</span><br>
+      <span class="hi">Exclusion %</span> = ${fmt(ld.nonComm)} ÷ ${fmt(TOTAL)} × 100 = <span class="purple">${ld.exclPct.toFixed(2)}%</span>
+    </p>
+    <p style="margin-top:8px;">
+      <span class="purple">With exclusion</span> = Normal % + Exclusion % &nbsp;
+      8hrs LS = <span class="purple">${ld.ls8.pctE.toFixed(2)}%</span> &nbsp;
+      12hrs LS = <span class="purple">${ld.ls12.pctE.toFixed(2)}%</span> &nbsp;
+      24hrs DP = <span class="purple">${ld.dp24.pctE.toFixed(2)}%</span>
+    </p>`;
+}
+
+function renderDashboard() {
+  buildFilters();
+  updateMetricCards();
+  makeChart('ls8Chart','ls8');
+  makeChart('ls12Chart','ls12');
+  makeChart('dp24Chart','dp24');
+  updateTable();
+}
+
+function showDate(btn, filter) {
+  currentFilter = filter;
+  document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  updateMetricCards();
+  makeChart('ls8Chart','ls8');
+  makeChart('ls12Chart','ls12');
+  makeChart('dp24Chart','dp24');
+  updateTable();
+}
+</script>
+</body>
+</html>
