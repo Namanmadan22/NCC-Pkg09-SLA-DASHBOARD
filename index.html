@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0050)file:///C:/Users/NamanMadan/Downloads/index_2.html -->
+<!-- saved from url=(0050)file:///C:/Users/NamanMadan/Downloads/index_3.html -->
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -385,6 +385,18 @@ function dateLabel(d) {
   return `${String(d.getDate()).padStart(2,'0')} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]}`;
 }
 
+function loadMeters() {
+  return new Promise((resolve, reject) => {
+    if (typeof window.SAT_METERS !== 'undefined') { resolve(); return; }
+    setStatus('Loading meter list (8MB)… please wait');
+    const ms = document.createElement('script');
+    ms.src = 'meters.js';
+    ms.onload = resolve;
+    ms.onerror = () => reject(new Error('Failed to load meters.js'));
+    document.body.appendChild(ms);
+  });
+}
+
 async function processAll() {
   const btn = document.getElementById('process-btn');
   btn.disabled = true;
@@ -394,9 +406,7 @@ async function processAll() {
       readXLSX(files.ls8), readXLSX(files.ls12), readXLSX(files.dp24), readXLSX(files.routing)
     ]);
 
-    if (typeof window.SAT_METERS === 'undefined') {
-      setStatus('Error: meters.js not loaded.', 'err'); btn.disabled=false; return;
-    }
+    await loadMeters();
 
     setStatus('Calculating SLA %…');
     function parseSLA(rows, maxPkt) {
@@ -607,12 +617,8 @@ function showDate(btn, filter) {
 // Show seed data immediately on page load
 renderAll();
 
-// Load meters.js async in background — needed only when uploading new files
-const ms = document.createElement('script');
-ms.src = 'meters.js';
-ms.async = true;
-document.body.appendChild(ms);
-</script><script src="file:///C:/Users/NamanMadan/Downloads/meters.js" async=""></script>
+// meters.js loaded on demand when user uploads files
+</script>
 
 
 </body></html>
