@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0050)file:///C:/Users/NamanMadan/Downloads/index_1.html -->
+<!-- saved from url=(0050)file:///C:/Users/NamanMadan/Downloads/index_2.html -->
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -211,7 +211,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--page);color:var(--text);m
         <span class="leg"><span class="leg-sq" style="background:#4A9EFF;"></span>Without exclusion</span>
         <span class="leg"><span class="leg-sq" style="background:#A78BFA;"></span>With exclusion</span>
       </div>
-      <div style="position:relative;height:220px;"><canvas id="ls8Chart" role="img" aria-label="8hrs LS" width="276" height="220" style="display: block; box-sizing: border-box; height: 220px; width: 276px;"></canvas></div>
+      <div style="position:relative;height:220px;"><canvas id="ls8Chart" role="img" aria-label="8hrs LS" width="415" height="330" style="display: block; box-sizing: border-box; height: 220px; width: 277px;"></canvas></div>
     </div>
     <div class="sc">
       <div class="sc-head"><span class="sc-title">12hrs LS</span><span class="sc-tag" style="color:var(--teal);background:var(--teal-dim);border-color:#0E9E7240;">% achieved</span></div>
@@ -219,7 +219,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--page);color:var(--text);m
         <span class="leg"><span class="leg-sq" style="background:#34D399;"></span>Without exclusion</span>
         <span class="leg"><span class="leg-sq" style="background:#A78BFA;"></span>With exclusion</span>
       </div>
-      <div style="position:relative;height:220px;"><canvas id="ls12Chart" role="img" aria-label="12hrs LS" width="276" height="220" style="display: block; box-sizing: border-box; height: 220px; width: 276px;"></canvas></div>
+      <div style="position:relative;height:220px;"><canvas id="ls12Chart" role="img" aria-label="12hrs LS" width="415" height="330" style="display: block; box-sizing: border-box; height: 220px; width: 277px;"></canvas></div>
     </div>
     <div class="sc">
       <div class="sc-head"><span class="sc-title">24hrs DP</span><span class="sc-tag" style="color:var(--amber);background:var(--amber-dim);border-color:#D9770640;">% achieved</span></div>
@@ -227,7 +227,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--page);color:var(--text);m
         <span class="leg"><span class="leg-sq" style="background:#FBBF24;"></span>Without exclusion</span>
         <span class="leg"><span class="leg-sq" style="background:#A78BFA;"></span>With exclusion</span>
       </div>
-      <div style="position:relative;height:220px;"><canvas id="dp24Chart" role="img" aria-label="24hrs DP" width="276" height="220" style="display: block; box-sizing: border-box; height: 220px; width: 276px;"></canvas></div>
+      <div style="position:relative;height:220px;"><canvas id="dp24Chart" role="img" aria-label="24hrs DP" width="415" height="330" style="display: block; box-sizing: border-box; height: 220px; width: 277px;"></canvas></div>
     </div>
   </div>
 
@@ -305,7 +305,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--page);color:var(--text);m
   </div>
 </div>
 
-<script src="file:///C:/Users/NamanMadan/Downloads/meters.js"></script>
 <script>
 const TOTAL   = 705865;
 const MAX_LS  = 48, MAX_DP = 1;
@@ -605,9 +604,15 @@ function showDate(btn, filter) {
   updateTable();
 }
 
-// Load on page open
+// Show seed data immediately on page load
 renderAll();
-</script>
+
+// Load meters.js async in background — needed only when uploading new files
+const ms = document.createElement('script');
+ms.src = 'meters.js';
+ms.async = true;
+document.body.appendChild(ms);
+</script><script src="file:///C:/Users/NamanMadan/Downloads/meters.js" async=""></script>
 
 
 </body></html>
